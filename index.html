@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dimension Gate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+html, body {
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:black;
+  font-family: monospace;
+  color:lime;
+}
+
+body {
+  transition: transform 0.9s ease-in-out;
+  transform-origin: center center;
+}
+
+.box {
+  width:420px;
+  max-height:80vh;
+  padding:20px;
+  background: rgba(0,0,0,0.55);
+  border:1px solid lime;
+  border-radius:8px;
+  text-align:center;
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  z-index:5;
+  overflow:auto;
+}
+
+input, textarea {
+  width:100%;
+  padding:6px;
+  margin-bottom:10px;
+  background:rgba(0,0,0,0.3);
+  color:lime;
+  border:1px solid lime;
+  font-size:15px;
+}
+
+button {
+  width:100%;
+  padding:8px;
+  background:lime;
+  color:black;
+  border:none;
+  cursor:pointer;
+  font-size:16px;
+}
+
+#challengeBox, #dimension, #zoomquiltStage { display:none; }
+
+/* Dimension */
+#dimension {
+  position:absolute;
+  inset:0;
+  cursor:pointer;
+}
+
+#matrixCanvas {
+  position:absolute;
+  inset:0;
+  z-index:1;
+}
+
+#dimensionContent {
+  position:relative;
+  z-index:2;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#0ff;
+  font-size:42px;
+  text-align:center;
+}
+
+/* Zoomquilt */
+#zoomquiltStage {
+  position:fixed;
+  inset:0;
+  z-index:20;
+}
+
+#zoomquiltStage iframe {
+  width:100vw;
+  height:100vh;
+  border:none;
+}
+
+.click-blocker {
+  position:fixed;
+  inset:0;
+  z-index:30;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginBox" class="box">
+  <h2>Login</h2>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
+  <button onclick="login()">Enter</button>
+  <div id="loginMsg"></div>
+</div>
+
+<!-- CHALLENGE -->
+<div id="challengeBox" class="box">
+  <h2>Python Gate</h2>
+  <p>
+    Write a Python function <b>factorial(n)</b><br>
+    Then return <b>factorial(6)</b>
+  </p>
+  <textarea id="code" rows="7"></textarea>
+  <button id="submitBtn" onclick="checkCode()" disabled>Loading Python...</button>
+  <div id="challengeMsg"></div>
+</div>
+
+<!-- DIMENSION -->
+<div id="dimension">
+  <canvas id="matrixCanvas"></canvas>
+  <div id="dimensionContent">
+    🌌 NEXT DIMENSION<br>
+    <small>(click)</small>
+  </div>
+</div>
+
+<!-- ZOOMQUILT -->
+<div id="zoomquiltStage">
+  <iframe src="https://zoomquilt2.com/"></iframe>
+  <div class="click-blocker"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
+
+<script>
+/* ---------- PYODIDE ---------- */
+let pyodide;
+(async () => {
+  pyodide = await loadPyodide();
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Submit";
+})();
+
+/* ---------- LOGIN ---------- */
+/* md5("hubro2.0Wanted#123") */
+const LOGIN_HASH = "e0e60966e8204c0b2e9f4a6c86c61f0b";
+
+function login() {
+  const u = user.value.trim();
+  const p = pass.value.trim();
+  console.log("Username:", u);
+  console.log("Password:", p);
+  console.log("MD5(u+p):", md5(u+p));
+  
+  if (u === "hubro2.0" && p === "Wanted#123") {
+    loginBox.style.display = "none";
+    challengeBox.style.display = "block";
+  } else {
+    loginMsg.textContent = "❌ Access Denied";
+  }
+}
+
+/* ---------- PYTHON GATE ---------- */
+async function checkCode() {
+  try {
+    const wrapped = `
+${code.value}
+
+if 'factorial' not in globals() or not callable(factorial):
+    raise Exception("factorial not defined")
+
+factorial(6)
+`;
+    const result = await pyodide.runPythonAsync(wrapped);
+    if (String(result).trim() === "720") {
+      challengeMsg.textContent = "✔ Gate Opened";
+      setTimeout(enterDimension, 700);
+    } else {
+      challengeMsg.textContent = "❌ Wrong result";
+    }
+  } catch (e) {
+    challengeMsg.textContent = "⚠ Python Error";
+  }
+}
+
+/* ---------- TRANSITIONS ---------- */
+function enterDimension() {
+  document.body.style.transform = "scale(0.1)";
+  setTimeout(() => {
+    challengeBox.style.display = "none";
+    dimension.style.display = "block";
+    document.body.style.transform = "scale(1)";
+    startMatrix();
+  }, 900);
+}
+
+/* ---------- MATRIX ---------- */
+function startMatrix() {
+  const c = matrixCanvas;
+  const ctx = c.getContext("2d");
+  c.width = innerWidth;
+  c.height = innerHeight;
+
+  const size = 16;
+  const cols = Math.floor(c.width / size);
+  const drops = Array(cols).fill(1);
+
+  function draw() {
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle = "#0f0";
+    ctx.font = size+"px monospace";
+    drops.forEach((y,i)=>{
+      ctx.fillText(Math.random() > 0.5 ? "1" : "0", i*size, y*size);
+      if (y*size > c.height && Math.random() > 0.97) drops[i] = 0;
+      drops[i]++;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+/* ---------- FINAL PORTAL ---------- */
+dimension.addEventListener("click", () => {
+  document.body.style.transform = "scale(0.1)";
+  setTimeout(() => {
+    dimension.style.display = "none";
+    zoomquiltStage.style.display = "block";
+    document.body.style.transform = "scale(1)";
+  }, 900);
+});
+</script>
+
+</body>
+</html>

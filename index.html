@@ -1,1 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dimension Gate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<style>
+html, body {
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:black;
+  font-family: monospace;
+  color:lime;
+}
+
+body {
+  transition: transform 0.9s ease-in-out, filter 0.3s;
+  transform-origin:center;
+}
+
+/* ---------- UI ---------- */
+.box {
+  width:420px;
+  max-height:80vh;
+  padding:20px;
+  background:rgba(0,0,0,0.6);
+  border:1px solid lime;
+  border-radius:8px;
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  z-index:5;
+  overflow:auto;
+  text-align:center;
+}
+
+input, textarea {
+  width:100%;
+  padding:6px;
+  margin-bottom:10px;
+  background:rgba(0,0,0,0.3);
+  color:lime;
+  border:1px solid lime;
+  font-size:15px;
+}
+
+button {
+  width:100%;
+  padding:8px;
+  background:lime;
+  color:black;
+  border:none;
+  cursor:pointer;
+  font-size:16px;
+}
+
+.hidden { display:none; }
+
+/* ---------- MATRIX ---------- */
+#dimension {
+  position:absolute;
+  inset:0;
+  cursor:pointer;
+}
+
+#matrixCanvas {
+  position:absolute;
+  inset:0;
+}
+
+#dimensionContent {
+  position:relative;
+  z-index:2;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  font-size:42px;
+  color:#0ff;
+  text-shadow:0 0 15px #0ff;
+}
+
+/* ---------- FINAL ---------- */
+#zoomquiltStage {
+  position:fixed;
+  inset:0;
+  z-index:30;
+}
+
+#zoomquiltStage iframe {
+  width:100vw;
+  height:100vh;
+  border:none;
+}
+
+.click-blocker {
+  position:fixed;
+  inset:0;
+  z-index:40;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginBox" class="box">
+  <h2>Login</h2>
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
+  <button onclick="login()">Enter</button>
+  <div id="loginMsg"></div>
+</div>
+
+<!-- PYTHON GATE -->
+<div id="challengeBox" class="box hidden">
+  <h2>Python Gate</h2>
+  <p>
+    Define <b>factorial(n)</b><br>
+    Return <b>factorial(6)</b>
+  </p>
+  <textarea id="code" rows="7"></textarea>
+  <button id="submitBtn" disabled>Loading Python…</button>
+  <div id="challengeMsg"></div>
+</div>
+
+<!-- DIMENSION -->
+<div id="dimension" class="hidden">
+  <canvas id="matrixCanvas"></canvas>
+  <div id="dimensionContent">
+    🌌 NEXT DIMENSION<br>
+    <small>(click)</small>
+  </div>
+</div>
+
+<!-- FINAL -->
+<div id="zoomquiltStage" class="hidden">
+  <iframe src="https://zoomquilt2.com/"></iframe>
+  <div class="click-blocker"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
+
+<script>
+/* ==============================
+   STATE MACHINE
+================================ */
+const state = {
+  loggedIn:false,
+  pythonPassed:false
+};
+
+/* ==============================
+   AUTH (OBFUSCATED)
+   md5("hubro2.0"+"Wanted#123")
+================================ */
+const LOGIN_HASH = "7e41bcd92bd8b71e0cb2d05f59dd504b";
+
+function login() {
+  const u = user.value.trim();
+  const p = pass.value.trim();
+
+  console.log("STRING:", u + p);
+  console.log("MD5:", md5(u + p));
+
+  if (md5(u + p) === LOGIN_HASH) {
+    state.loggedIn = true;
+    transition(() => {
+      loginBox.classList.add("hidden");
+      challengeBox.classList.remove("hidden");
+    });
+  } else {
+    loginMsg.textContent = "❌ Access Denied";
+    glitch(loginBox);
+  }
+}
+
+/* ==============================
+   PYODIDE
+================================ */
+let pyodide;
+(async () => {
+  pyodide = await loadPyodide();
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Submit";
+  submitBtn.onclick = checkCode;
+})();
+
+async function checkCode() {
+  if (!state.loggedIn) return;
+
+  if (/import|open|exec|eval|__/.test(code.value)) {
+    challengeMsg.textContent = "🚫 Forbidden operation";
+    return;
+  }
+
+  const wrapped = `
+${code.value}
+
+if 'factorial' not in globals():
+    raise Exception("factorial missing")
+
+factorial(6)
+`;
+
+  try {
+    const result = await pyodide.runPythonAsync(wrapped, { timeout:500 });
+    if (String(result).trim() === "720") {
+      state.pythonPassed = true;
+      challengeMsg.textContent = "✔ Gate Opened";
+      setTimeout(enterDimension, 700);
+    } else {
+      challengeMsg.textContent = "❌ Wrong result";
+    }
+  } catch {
+    challengeMsg.textContent = "⚠ Python Error";
+  }
+}
+
+/* ==============================
+   TRANSITIONS
+================================ */
+function transition(cb) {
+  document.body.style.transform = "scale(0.1)";
+  setTimeout(() => {
+    cb();
+    document.body.style.transform = "scale(1)";
+  }, 900);
+}
+
+function glitch(el) {
+  el.style.filter = "hue-rotate(90deg)";
+  setTimeout(() => el.style.filter = "", 200);
+}
+
+function enterDimension() {
+  if (!state.pythonPassed) return;
+  transition(() => {
+    challengeBox.classList.add("hidden");
+    dimension.classList.remove("hidden");
+    startMatrix();
+  });
+}
+
+/* ==============================
+   MATRIX CLASS
+================================ */
+class MatrixRain {
+  constructor(canvas) {
+    this.c = canvas;
+    this.ctx = canvas.getContext("2d");
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+    this.size = 16;
+    this.cols = Math.floor(this.c.width / this.size);
+    this.drops = Array(this.cols).fill(1);
+  }
+
+  resize() {
+    this.c.width = innerWidth;
+    this.c.height = innerHeight;
+  }
+
+  draw() {
+    const {ctx,c,size} = this;
+    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle = "#0f0";
+    ctx.shadowColor = "#0f0";
+    ctx.shadowBlur = 10;
+    ctx.font = size+"px monospace";
+
+    this.drops.forEach((y,i)=>{
+      ctx.fillText(Math.random() > 0.5 ? "1" : "0", i*size, y*size);
+      if (y*size > c.height && Math.random() > 0.97) this.drops[i] = 0;
+      this.drops[i]++;
+    });
+    requestAnimationFrame(()=>this.draw());
+  }
+}
+
+let matrix;
+function startMatrix() {
+  matrix = new MatrixRain(matrixCanvas);
+  matrix.draw();
+}
+
+/* ==============================
+   FINAL PORTAL
+================================ */
+dimension.addEventListener("click", () => {
+  transition(() => {
+    dimension.classList.add("hidden");
+    zoomquiltStage.classList.remove("hidden");
+  });
+});
+</script>
+
+</body>
+</html>

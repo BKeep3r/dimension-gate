@@ -2,103 +2,79 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Dimension Gate</title>
+<title>Dimension Gate v4</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 html, body {
-  margin:0;
-  padding:0;
-  width:100%;
-  height:100%;
-  overflow:hidden;
+  margin:0; padding:0;
+  width:100%; height:100%;
   background:black;
+  overflow:hidden;
   font-family: monospace;
   color:lime;
 }
-
 body {
-  transition: transform 0.9s ease-in-out, filter 0.3s;
-  transform-origin:center;
+  transition: transform 0.9s ease, filter 0.4s;
 }
-
-/* ---------- UI ---------- */
 .box {
   width:420px;
-  max-height:80vh;
   padding:20px;
-  background:rgba(0,0,0,0.6);
   border:1px solid lime;
-  border-radius:8px;
+  background:rgba(0,0,0,0.6);
   position:absolute;
-  top:50%;
-  left:50%;
+  top:50%; left:50%;
   transform:translate(-50%,-50%);
-  z-index:5;
-  overflow:auto;
   text-align:center;
+  z-index:5;
 }
-
 input, textarea {
   width:100%;
-  padding:6px;
-  margin-bottom:10px;
-  background:rgba(0,0,0,0.3);
+  background:black;
   color:lime;
   border:1px solid lime;
-  font-size:15px;
+  margin-bottom:10px;
+  padding:6px;
 }
-
 button {
   width:100%;
   padding:8px;
   background:lime;
-  color:black;
   border:none;
   cursor:pointer;
-  font-size:16px;
 }
-
 .hidden { display:none; }
 
-/* ---------- MATRIX ---------- */
 #dimension {
   position:absolute;
   inset:0;
   cursor:pointer;
 }
-
 #matrixCanvas {
   position:absolute;
   inset:0;
 }
-
 #dimensionContent {
   position:relative;
   z-index:2;
-  height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  font-size:42px;
   color:#0ff;
+  font-size:40px;
+  text-align:center;
+  top:40%;
   text-shadow:0 0 15px #0ff;
 }
 
-/* ---------- FINAL ---------- */
 #zoomquiltStage {
   position:fixed;
   inset:0;
   z-index:30;
+  display:none;
 }
-
 #zoomquiltStage iframe {
   width:100vw;
   height:100vh;
   border:none;
 }
-
 .click-blocker {
   position:fixed;
   inset:0;
@@ -118,15 +94,12 @@ button {
   <div id="loginMsg"></div>
 </div>
 
-<!-- PYTHON GATE -->
+<!-- GATE -->
 <div id="challengeBox" class="box hidden">
-  <h2>Python Gate</h2>
-  <p>
-    Define <b>factorial(n)</b><br>
-    Return <b>factorial(6)</b>
-  </p>
+  <h3 id="gateTitle"></h3>
+  <p id="gatePrompt"></p>
   <textarea id="code" rows="7"></textarea>
-  <button id="submitBtn" disabled>Loading Python…</button>
+  <button id="submitBtn">Submit</button>
   <div id="challengeMsg"></div>
 </div>
 
@@ -134,13 +107,12 @@ button {
 <div id="dimension" class="hidden">
   <canvas id="matrixCanvas"></canvas>
   <div id="dimensionContent">
-    🌌 NEXT DIMENSION<br>
-    <small>(click)</small>
+    🌌 NEXT DIMENSION<br><small>(click)</small>
   </div>
 </div>
 
-<!-- FINAL -->
-<div id="zoomquiltStage" class="hidden">
+<!-- FINAL ZOOMQUILT -->
+<div id="zoomquiltStage">
   <iframe src="https://zoomquilt2.com/"></iframe>
   <div class="click-blocker"></div>
 </div>
@@ -148,159 +120,199 @@ button {
 <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/blueimp-md5/js/md5.min.js"></script>
 
-<script>
-/* ==============================
-   STATE MACHINE
-================================ */
-const state = {
-  loggedIn:false,
-  pythonPassed:false
-};
+<!-- Hidden message (steganography) -->
+<!--
+01001001 01100110 00100000 01111001
+01101111 01110101 00100000
+01110010 01100101 01100001
+01100100 00100000 01110100
+01101000 01101001 01110011
+-->
 
-/* ==============================
-   AUTH (OBFUSCATED)
-   md5("hubro2.0"+"Wanted#123")
-================================ */
-const LOGIN_HASH = "7e41bcd92bd8b71e0cb2d05f59dd504b";
+<script>
+/* =====================
+   ARG CONSOLE HOOK
+===================== */
+console.log(
+  "%cYOU ARE NOT SUPPOSED TO BE HERE",
+  "color:red;font-size:22px"
+);
+setTimeout(()=>console.clear(),4000);
+
+/* =====================
+   AUDIO SYSTEM
+===================== */
+const audioCtx = new AudioContext();
+
+function ambientHum() {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = 34;
+  g.gain.value = 0.015;
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  return g;
+}
+function successTone() {
+  const o = audioCtx.createOscillator();
+  o.frequency.setValueAtTime(300,audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(1200,audioCtx.currentTime+0.4);
+  o.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+0.4);
+}
+function failClick() {
+  const b = audioCtx.createBuffer(1,200,44100);
+  const d = b.getChannelData(0);
+  d[0] = 1;
+  const s = audioCtx.createBufferSource();
+  s.buffer = b;
+  s.connect(audioCtx.destination);
+  s.start();
+}
+let humGain;
+
+/* =====================
+   STATE
+===================== */
+const state = { logged:false, gateIndex:0 };
+
+/* =====================
+   LOGIN
+===================== */
+const LOGIN_HASH = md5("hubro2.0"+"Wanted#123");
 
 function login() {
-  const u = user.value.trim();
-  const p = pass.value.trim();
-
-  console.log("STRING:", u + p);
-  console.log("MD5:", md5(u + p));
-
-  if (md5(u + p) === LOGIN_HASH) {
-    state.loggedIn = true;
-    transition(() => {
-      loginBox.classList.add("hidden");
-      challengeBox.classList.remove("hidden");
-    });
+  if (md5(user.value + pass.value) === LOGIN_HASH) {
+    state.logged = true;
+    humGain = ambientHum();
+    loginBox.classList.add("hidden");
+    challengeBox.classList.remove("hidden");
+    runGate();
   } else {
     loginMsg.textContent = "❌ Access Denied";
-    glitch(loginBox);
+    failClick();
   }
 }
 
-/* ==============================
+/* =====================
    PYODIDE
-================================ */
+===================== */
 let pyodide;
-(async () => {
-  pyodide = await loadPyodide();
-  submitBtn.disabled = false;
-  submitBtn.textContent = "Submit";
-  submitBtn.onclick = checkCode;
-})();
+(async ()=>{ pyodide = await loadPyodide(); })();
 
-async function checkCode() {
-  if (!state.loggedIn) return;
-
-  if (/import|open|exec|eval|__/.test(code.value)) {
-    challengeMsg.textContent = "🚫 Forbidden operation";
-    return;
-  }
-
-  const wrapped = `
-${code.value}
-
-if 'factorial' not in globals():
-    raise Exception("factorial missing")
-
+/* =====================
+   GATE ENGINE
+===================== */
+const gates = [
+  {
+    id:"python_factorial",
+    type:"python",
+    prompt:"Define factorial(n). Return factorial(6).",
+    runner: async input => {
+      const code = `
+${input}
+if 'factorial' not in globals(): raise Exception()
 factorial(6)
 `;
+      return String(await pyodide.runPythonAsync(code,{timeout:500})).trim();
+    },
+    validate:r=>r==="720"
+  },
+  {
+    id:"regex_hex",
+    type:"regex",
+    prompt:"Write a regex that matches ONLY lowercase hex.",
+    runner: input => new RegExp(input),
+    validate:r=>r.test("deadbeef") && !r.test("DEADBEEF")
+  },
+  {
+    id:"prime_logic",
+    type:"js",
+    prompt:"Write JS function isPrime(n).",
+    runner: input => { eval(input); return isPrime; },
+    validate: fn => fn(7) && !fn(9)
+  }
+].sort(()=>Math.random()-0.5);
 
+function runGate() {
+  const g = gates[state.gateIndex];
+  gateTitle.textContent = g.id;
+  gatePrompt.textContent = g.prompt;
+  code.value = "";
+  challengeMsg.textContent = "";
+}
+
+submitBtn.onclick = async ()=>{
+  const g = gates[state.gateIndex];
   try {
-    const result = await pyodide.runPythonAsync(wrapped, { timeout:500 });
-    if (String(result).trim() === "720") {
-      state.pythonPassed = true;
-      challengeMsg.textContent = "✔ Gate Opened";
-      setTimeout(enterDimension, 700);
+    const res = await g.runner(code.value);
+    if (g.validate(res)) {
+      successTone();
+      state.gateIndex++;
+      humGain.gain.linearRampToValueAtTime(0.03,audioCtx.currentTime+1);
+      if (state.gateIndex >= gates.length) enterDimension();
+      else runGate();
     } else {
-      challengeMsg.textContent = "❌ Wrong result";
+      challengeMsg.textContent="❌ Rejected";
+      failClick();
     }
   } catch {
-    challengeMsg.textContent = "⚠ Python Error";
+    challengeMsg.textContent="⚠ Error";
+    failClick();
   }
-}
+};
 
-/* ==============================
-   TRANSITIONS
-================================ */
-function transition(cb) {
-  document.body.style.transform = "scale(0.1)";
-  setTimeout(() => {
-    cb();
-    document.body.style.transform = "scale(1)";
-  }, 900);
-}
+/* =====================
+   MATRIX 2.0
+===================== */
+let reveal=false, startTime=Date.now();
+const stream="WAKEUPNEODONTTRUSTTHEGATE";
 
-function glitch(el) {
-  el.style.filter = "hue-rotate(90deg)";
-  setTimeout(() => el.style.filter = "", 200);
-}
-
-function enterDimension() {
-  if (!state.pythonPassed) return;
-  transition(() => {
-    challengeBox.classList.add("hidden");
-    dimension.classList.remove("hidden");
-    startMatrix();
-  });
-}
-
-/* ==============================
-   MATRIX CLASS
-================================ */
-class MatrixRain {
-  constructor(canvas) {
-    this.c = canvas;
-    this.ctx = canvas.getContext("2d");
-    this.resize();
-    window.addEventListener("resize", () => this.resize());
-    this.size = 16;
-    this.cols = Math.floor(this.c.width / this.size);
-    this.drops = Array(this.cols).fill(1);
-  }
-
-  resize() {
-    this.c.width = innerWidth;
-    this.c.height = innerHeight;
-  }
-
-  draw() {
-    const {ctx,c,size} = this;
-    ctx.fillStyle = "rgba(0,0,0,0.08)";
-    ctx.fillRect(0,0,c.width,c.height);
-    ctx.fillStyle = "#0f0";
-    ctx.shadowColor = "#0f0";
-    ctx.shadowBlur = 10;
-    ctx.font = size+"px monospace";
-
-    this.drops.forEach((y,i)=>{
-      ctx.fillText(Math.random() > 0.5 ? "1" : "0", i*size, y*size);
-      if (y*size > c.height && Math.random() > 0.97) this.drops[i] = 0;
-      this.drops[i]++;
-    });
-    requestAnimationFrame(()=>this.draw());
-  }
-}
-
-let matrix;
 function startMatrix() {
-  matrix = new MatrixRain(matrixCanvas);
-  matrix.draw();
+  const c = matrixCanvas, ctx=c.getContext("2d");
+  c.width=innerWidth; c.height=innerHeight;
+  let drops=Array(Math.floor(c.width/16)).fill(1);
+  let idx=0;
+
+  function draw() {
+    ctx.fillStyle="rgba(0,0,0,0.08)";
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.font="16px monospace";
+    ctx.fillStyle = Date.now()-startTime>60000 ? "#fff":"#0ff";
+
+    drops.forEach((y,i)=>{
+      const ch = reveal ? stream[idx++%stream.length] : (Math.random()>0.5?"1":"0");
+      ctx.fillText(ch,i*16,y*16);
+      if (y*16>c.height && Math.random()>0.97) drops[i]=0;
+      drops[i]++;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+  setTimeout(()=>reveal=true,30000);
 }
 
-/* ==============================
-   FINAL PORTAL
-================================ */
-dimension.addEventListener("click", () => {
-  transition(() => {
+/* =====================
+   TRANSITION TO DIMENSION
+===================== */
+function enterDimension() {
+  challengeBox.classList.add("hidden");
+  dimension.classList.remove("hidden");
+  startMatrix();
+}
+
+/* =====================
+   MATRIX CLICK → ZOOMQUILT
+===================== */
+dimension.onclick = ()=>{
+  console.warn("Kernel panic at 0x0000deadbeef"); // ARG clue
+  document.body.style.transform = "scale(0.1)";
+  setTimeout(()=>{
     dimension.classList.add("hidden");
-    zoomquiltStage.classList.remove("hidden");
-  });
-});
+    document.getElementById("zoomquiltStage").style.display="block";
+    document.body.style.transform = "scale(1)";
+  },900);
+};
 </script>
 
 </body>

@@ -1,0 +1,86 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  background: black;
+  color: #0ff;
+  font-family: monospace;
+  overflow: hidden;
+}
+
+.hidden { display: none; }
+
+/* Login and challenge boxes always clickable */
+#loginBox, #challengeBox {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 2000;
+}
+
+input, button {
+  background: black;
+  border: 1px solid #0ff;
+  color: #0ff;
+  padding: 8px;
+  margin: 6px;
+}
+
+/* Canvas and dimension overlay behind inputs until activated */
+canvas, #dimension {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+#dimension.active {
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 1500;
+}
+
+/* 3D message centered */
+#message3d {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 900px;
+  z-index: 1500;
+}
+
+#messageText {
+  font-size: 2.5em;
+  text-align: center;
+  color: #0ff;
+  text-shadow: 0 0 15px #0ff;
+}
+
+.melt-letter {
+  display: inline-block;
+  animation: melt 2s forwards;
+}
+
+@keyframes melt {
+  0% { transform: translateY(0) rotateX(0deg); opacity: 1; }
+  50% { transform: translateY(20px) rotateX(20deg); opacity: 0.7; }
+  100% { transform: translateY(100px) rotateX(60deg); opacity: 0; }
+}
+
+/* Zoomquilt */
+#zoomquiltStage {
+  opacity: 0;
+  transition: opacity 3s ease;
+  position: fixed;
+  inset: 0;
+  z-index: 3000; /* on top of everything */
+}
+
+#zoomquiltStage iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
